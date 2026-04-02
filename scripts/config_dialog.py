@@ -174,12 +174,16 @@ def save_account(slot, email, plan, config_dir):
 
 
 def check_plugins(config_dir=None):
-    """Check which required plugins are installed.
+    """Check which required plugins are installed for a given config dir.
+    Each CLAUDE_CONFIG_DIR has its own installed_plugins.json (not symlinked),
+    so plugins must be installed per-account. settings.json IS symlinked
+    but we check it from the config_dir to be safe.
     Returns dict: {plugin_id: bool}"""
     results = {}
+    cdir = config_dir or DEFAULT_CONFIG
 
-    # Marketplace plugins: check global installed_plugins.json
-    installed_file = os.path.join(DEFAULT_CONFIG, 'plugins', 'installed_plugins.json')
+    # installed_plugins.json is PER config dir (not symlinked)
+    installed_file = os.path.join(cdir, 'plugins', 'installed_plugins.json')
     installed_plugins = {}
     try:
         with open(installed_file) as f:
@@ -188,8 +192,8 @@ def check_plugins(config_dir=None):
     except (FileNotFoundError, json.JSONDecodeError, KeyError):
         pass
 
-    # Check enabledPlugins in settings.json (follows symlink for supertask dirs)
-    settings_file = os.path.join(config_dir or DEFAULT_CONFIG, 'settings.json')
+    # settings.json enabledPlugins (symlinked in supertask dirs → shared)
+    settings_file = os.path.join(cdir, 'settings.json')
     enabled_plugins = {}
     try:
         with open(settings_file) as f:
@@ -201,11 +205,19 @@ def check_plugins(config_dir=None):
     for plugin in REQUIRED_PLUGINS:
         pid = plugin['id']
         if plugin['type'] == 'local':
-            plugin_dir = os.path.join(DEFAULT_CONFIG, 'plugins', 'autoloop')
-            plugin_json = os.path.join(plugin_dir, '.claude-plugin', 'plugin.json')
-            results[pid] = os.path.isdir(plugin_dir) and os.path.isfile(plugin_json)
+            # Check both the selected config dir AND default for local plugins
+            found = False
+            for search_dir in (cdir, DEFAULT_CONFIG):
+                plugin_dir = os.path.join(search_dir, 'plugins', 'autoloop')
+                plugin_json = os.path.join(
+                    plugin_dir, '.claude-plugin', 'plugin.json')
+                if os.path.isdir(plugin_dir) and os.path.isfile(plugin_json):
+                    found = True
+                    break
+            results[pid] = found
         else:
-            is_installed = pid in installed_plugins and len(installed_plugins[pid]) > 0
+            is_installed = (pid in installed_plugins
+                            and len(installed_plugins[pid]) > 0)
             is_enabled = enabled_plugins.get(pid, False)
             results[pid] = is_installed and is_enabled
 
