@@ -50,6 +50,51 @@ TIME_LIMIT_OPTIONS = [
     '4 hours', '8 hours', '12 hours', '24 hours'
 ]
 
+REQUIRED_PLUGINS = [
+    {
+        'id': 'ralph-loop@claude-plugins-official',
+        'display': 'Ralph Loop',
+        'type': 'marketplace',
+        'install_cmd': '/plugin install ralph-loop@claude-plugins-official',
+    },
+    {
+        'id': 'superpowers@claude-plugins-official',
+        'display': 'Superpowers',
+        'type': 'marketplace',
+        'install_cmd': '/plugin install superpowers@claude-plugins-official',
+    },
+    {
+        'id': 'playwright@claude-plugins-official',
+        'display': 'Playwright',
+        'type': 'marketplace',
+        'install_cmd': '/plugin install playwright@claude-plugins-official',
+    },
+    {
+        'id': 'frontend-design@claude-plugins-official',
+        'display': 'Frontend Design',
+        'type': 'marketplace',
+        'install_cmd': '/plugin install frontend-design@claude-plugins-official',
+    },
+    {
+        'id': 'typescript-lsp@claude-plugins-official',
+        'display': 'TypeScript LSP',
+        'type': 'marketplace',
+        'install_cmd': '/plugin install typescript-lsp@claude-plugins-official',
+    },
+    {
+        'id': 'hookify@claude-plugins-official',
+        'display': 'Hookify',
+        'type': 'marketplace',
+        'install_cmd': '/plugin install hookify@claude-plugins-official',
+    },
+    {
+        'id': 'autoloop',
+        'display': 'AutoLoop',
+        'type': 'local',
+        'install_cmd': 'curl -sL https://raw.githubusercontent.com/AdamHoldinPurge/autoloop-plugin/main/install.sh | bash',
+    },
+]
+
 
 def get_accounts():
     """Get list of logged-in accounts. Returns [(email, plan, config_dir), ...]"""
@@ -126,6 +171,45 @@ def save_account(slot, email, plan, config_dir):
     })
     accounts.sort(key=lambda a: a.get('slot', 0))
     json.dump(accounts, open(ACCOUNTS_FILE, 'w'), indent=2)
+
+
+def check_plugins(config_dir=None):
+    """Check which required plugins are installed.
+    Returns dict: {plugin_id: bool}"""
+    results = {}
+
+    # Marketplace plugins: check global installed_plugins.json
+    installed_file = os.path.join(DEFAULT_CONFIG, 'plugins', 'installed_plugins.json')
+    installed_plugins = {}
+    try:
+        with open(installed_file) as f:
+            data = json.load(f)
+            installed_plugins = data.get('plugins', {})
+    except (FileNotFoundError, json.JSONDecodeError, KeyError):
+        pass
+
+    # Check enabledPlugins in settings.json (follows symlink for supertask dirs)
+    settings_file = os.path.join(config_dir or DEFAULT_CONFIG, 'settings.json')
+    enabled_plugins = {}
+    try:
+        with open(settings_file) as f:
+            data = json.load(f)
+            enabled_plugins = data.get('enabledPlugins', {})
+    except (FileNotFoundError, json.JSONDecodeError):
+        pass
+
+    for plugin in REQUIRED_PLUGINS:
+        pid = plugin['id']
+        if plugin['type'] == 'local':
+            plugin_dir = os.path.join(DEFAULT_CONFIG, 'plugins', 'autoloop')
+            plugin_json = os.path.join(plugin_dir, '.claude-plugin', 'plugin.json')
+            results[pid] = os.path.isdir(plugin_dir) and os.path.isfile(plugin_json)
+        else:
+            is_installed = pid in installed_plugins and len(installed_plugins[pid]) > 0
+            is_enabled = enabled_plugins.get(pid, False)
+            results[pid] = is_installed and is_enabled
+
+    return results
 
 
 # ════════════════════════════════════════════
@@ -695,6 +779,39 @@ class ConfigDialog(Gtk.Dialog):
         self.account_combo.connect('changed', self._on_account_changed)
         row += 1
 
+        # ── Plugins Status ──
+        plugins_lbl = Gtk.Label(label='Plugins')
+        plugins_lbl.set_xalign(1)
+        plugins_lbl.set_valign(Gtk.Align.START)
+        plugins_lbl.set_margin_top(4)
+        plugins_lbl.get_style_context().add_class('dim-label')
+        grid.attach(plugins_lbl, 0, row, 1, 1)
+
+        plugins_outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        plugins_outer.set_hexpand(True)
+
+        self.plugin_list_box = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        plugins_outer.pack_start(self.plugin_list_box, False, False, 0)
+
+        refresh_box = Gtk.Box(spacing=8)
+        refresh_box.set_margin_top(4)
+        refresh_btn = Gtk.Button(label='Refresh')
+        refresh_btn.set_halign(Gtk.Align.START)
+        refresh_btn.connect('clicked', self._on_refresh_plugins)
+        refresh_box.pack_start(refresh_btn, False, False, 0)
+        self.plugins_summary = Gtk.Label()
+        self.plugins_summary.set_xalign(0)
+        self.plugins_summary.get_style_context().add_class('dim-label')
+        refresh_box.pack_start(self.plugins_summary, True, True, 0)
+        plugins_outer.pack_start(refresh_box, False, False, 0)
+
+        grid.attach(plugins_outer, 1, row, 1, 1)
+        row += 1
+
+        # Initial plugin check
+        self._refresh_plugin_status()
+
         # ── Mission (multi-line TextView) ──
         lbl = Gtk.Label(label='Mission')
         lbl.set_xalign(1)
@@ -870,6 +987,7 @@ class ConfigDialog(Gtk.Dialog):
     def _on_account_changed(self, combo):
         text = combo.get_active_text()
         if text != '+ Add Account...':
+            self._refresh_plugin_status()
             return
         combo.handler_block_by_func(self._on_account_changed)
 
@@ -992,6 +1110,7 @@ sleep 3'''
             msg.run()
             msg.destroy()
 
+        self._refresh_plugin_status()
         combo.handler_unblock_by_func(self._on_account_changed)
 
     def _on_variations_changed(self, combo):
@@ -1073,6 +1192,96 @@ sleep 3'''
         if resp == Gtk.ResponseType.OK and dlg.selected_preset:
             target_entry.set_text(dlg.selected_preset)
         dlg.destroy()
+
+    # ── Plugin status methods ──
+
+    def _refresh_plugin_status(self):
+        """Clear and rebuild plugin status rows."""
+        for child in list(self.plugin_list_box.get_children()):
+            self.plugin_list_box.remove(child)
+            child.destroy()
+
+        config_dir = self.get_selected_config_dir()
+        status = check_plugins(config_dir)
+        all_ok = True
+        count = 0
+
+        for plugin in REQUIRED_PLUGINS:
+            pid = plugin['id']
+            ok = status.get(pid, False)
+            if ok:
+                count += 1
+            else:
+                all_ok = False
+
+            row_box = Gtk.Box(spacing=8)
+            row_box.set_margin_top(1)
+            row_box.set_margin_bottom(1)
+
+            icon = Gtk.Label()
+            if ok:
+                icon.set_markup(
+                    '<span foreground="#4CAF50" weight="bold">\u2714</span>')
+            else:
+                icon.set_markup(
+                    '<span foreground="#F44336" weight="bold">\u2718</span>')
+            icon.set_width_chars(2)
+            row_box.pack_start(icon, False, False, 0)
+
+            name = Gtk.Label()
+            esc = GLib.markup_escape_text(plugin['display'])
+            if ok:
+                name.set_markup(esc)
+            else:
+                name.set_markup(
+                    f'<span foreground="#F44336">{esc}</span>')
+            name.set_xalign(0)
+            name.set_hexpand(True)
+            row_box.pack_start(name, True, True, 0)
+
+            if not ok:
+                btn = Gtk.Button(label='Copy')
+                btn.set_relief(Gtk.ReliefStyle.NONE)
+                btn.set_tooltip_text(plugin['install_cmd'])
+                btn.connect('clicked', self._on_copy_install,
+                            plugin['install_cmd'])
+                row_box.pack_start(btn, False, False, 0)
+
+            self.plugin_list_box.pack_start(row_box, False, False, 0)
+
+        self._update_plugin_summary(count, len(REQUIRED_PLUGINS))
+        self._set_launch_sensitive(all_ok)
+        self.plugin_list_box.show_all()
+
+    def _on_refresh_plugins(self, _btn):
+        self._refresh_plugin_status()
+
+    def _on_copy_install(self, _btn, install_cmd):
+        clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
+        clipboard.set_text(install_cmd, -1)
+        clipboard.store()
+
+    def _update_plugin_summary(self, installed, total):
+        if installed == total:
+            self.plugins_summary.set_markup(
+                f'<small><span foreground="#4CAF50">'
+                f'{installed}/{total} installed</span></small>')
+        else:
+            missing = total - installed
+            self.plugins_summary.set_markup(
+                f'<small><span foreground="#F44336">'
+                f'{missing} missing</span> \u2014 '
+                f'install then click Refresh</small>')
+
+    def _set_launch_sensitive(self, sensitive):
+        ok_btn = self.get_widget_for_response(Gtk.ResponseType.OK)
+        if ok_btn:
+            ok_btn.set_sensitive(sensitive)
+            if not sensitive:
+                ok_btn.set_tooltip_text(
+                    'Install all required plugins first')
+            else:
+                ok_btn.set_tooltip_text(None)
 
     def get_selected_config_dir(self):
         idx = self.account_combo.get_active()
