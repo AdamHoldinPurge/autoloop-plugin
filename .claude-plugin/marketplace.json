@@ -1,0 +1,15 @@
+{
+  "name": "autoloop-local",
+  "description": "Local marketplace for the autoloop plugin",
+  "plugins": [
+    {
+      "name": "autoloop",
+      "description": "Self-planning autonomous loop. Claude executes tasks, updates its own plan, and generates next steps — forever.",
+      "version": "1.0.0",
+      "source": {
+        "type": "directory",
+        "path": "/home/adam/.claude/plugins/autoloop"
+      }
+    }
+  ]
+}

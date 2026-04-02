@@ -1,0 +1,9 @@
+{
+  "name": "autoloop",
+  "description": "Self-planning autonomous loop. Claude executes tasks, updates its own plan, and generates next steps — forever.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Adam"
+  },
+  "keywords": ["autonomous", "loop", "planning", "ralph"]
+}

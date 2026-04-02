@@ -1,0 +1,143 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <!-- Background gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f0f1a"/>
+      <stop offset="100%" stop-color="#1a1025"/>
+    </linearGradient>
+
+    <!-- Main infinity gradient: electric blue to purple to magenta -->
+    <linearGradient id="loopGrad" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#00b4ff"/>
+      <stop offset="40%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#d946ef"/>
+    </linearGradient>
+
+    <!-- Reversed gradient for the other strand -->
+    <linearGradient id="loopGrad2" x1="100%" y1="50%" x2="0%" y2="50%">
+      <stop offset="0%" stop-color="#00b4ff"/>
+      <stop offset="40%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#d946ef"/>
+    </linearGradient>
+
+    <!-- Bright highlight gradient -->
+    <linearGradient id="highlightGrad" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#66d4ff"/>
+      <stop offset="50%" stop-color="#b794f6"/>
+      <stop offset="100%" stop-color="#f472b6"/>
+    </linearGradient>
+
+    <!-- Outer glow filter -->
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur1"/>
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur2"/>
+      <feMerge>
+        <feMergeNode in="blur1"/>
+        <feMergeNode in="blur2"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Soft ambient glow -->
+    <filter id="ambientGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="14"/>
+    </filter>
+
+    <!-- AI circuit dot glow -->
+    <filter id="dotGlow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3"/>
+    </filter>
+
+    <!-- Background edge highlight -->
+    <radialGradient id="bgShine" cx="35%" cy="30%" r="60%">
+      <stop offset="0%" stop-color="#2a2040" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#0f0f1a" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- === BACKGROUND === -->
+  <rect x="4" y="4" width="248" height="248" rx="52" ry="52" fill="url(#bgGrad)"/>
+  <rect x="4" y="4" width="248" height="248" rx="52" ry="52" fill="url(#bgShine)"/>
+  <rect x="4" y="4" width="248" height="248" rx="52" ry="52" fill="none" stroke="#2a2545" stroke-width="1" stroke-opacity="0.5"/>
+
+  <!-- === AMBIENT GLOW BEHIND THE LOOP === -->
+  <ellipse cx="128" cy="128" rx="60" ry="35" fill="#8b5cf6" opacity="0.12" filter="url(#ambientGlow)"/>
+
+  <!-- === MOBIUS INFINITY LOOP === -->
+  <g transform="translate(128,128)">
+
+    <!-- Ambient color wash -->
+    <ellipse cx="0" cy="0" rx="55" ry="30" fill="#7c3aed" opacity="0.08" filter="url(#ambientGlow)"/>
+
+    <!-- === BACK STRAND (behind the crossing) === -->
+    <!-- Left lobe back -->
+    <path d="M -54,0 C -54,-34  -20,-38  0,-8"
+          fill="none" stroke="url(#loopGrad)" stroke-width="14" stroke-linecap="round"
+          opacity="0.3" filter="url(#ambientGlow)"/>
+    <path d="M -54,0 C -54,-34  -20,-38  0,-8"
+          fill="none" stroke="url(#loopGrad)" stroke-width="14" stroke-linecap="round"
+          filter="url(#glow)"/>
+
+    <!-- Right lobe back -->
+    <path d="M 54,0 C 54,34   20,38   0,8"
+          fill="none" stroke="url(#loopGrad2)" stroke-width="14" stroke-linecap="round"
+          opacity="0.3" filter="url(#ambientGlow)"/>
+    <path d="M 54,0 C 54,34   20,38   0,8"
+          fill="none" stroke="url(#loopGrad2)" stroke-width="14" stroke-linecap="round"
+          filter="url(#glow)"/>
+
+    <!-- === CENTER MASK: dark strip for crossing illusion === -->
+    <line x1="-3" y1="-14" x2="3" y2="14" stroke="#12101e" stroke-width="18" stroke-linecap="round" opacity="0.95"/>
+
+    <!-- === FRONT STRAND (over the crossing) === -->
+    <!-- Right lobe front -->
+    <path d="M 54,0 C 54,-34  20,-38  0,-8"
+          fill="none" stroke="url(#loopGrad2)" stroke-width="14" stroke-linecap="round"
+          opacity="0.3" filter="url(#ambientGlow)"/>
+    <path d="M 54,0 C 54,-34  20,-38  0,-8"
+          fill="none" stroke="url(#loopGrad2)" stroke-width="14" stroke-linecap="round"
+          filter="url(#glow)"/>
+
+    <!-- Left lobe front -->
+    <path d="M -54,0 C -54,34  -20,38  0,8"
+          fill="none" stroke="url(#loopGrad)" stroke-width="14" stroke-linecap="round"
+          opacity="0.3" filter="url(#ambientGlow)"/>
+    <path d="M -54,0 C -54,34  -20,38  0,8"
+          fill="none" stroke="url(#loopGrad)" stroke-width="14" stroke-linecap="round"
+          filter="url(#glow)"/>
+
+    <!-- === HIGHLIGHT STROKES (thinner, brighter, on top) === -->
+    <path d="M -52,0 C -52,-30  -18,-34  0,-7"
+          fill="none" stroke="url(#highlightGrad)" stroke-width="3" stroke-linecap="round" opacity="0.5"/>
+    <path d="M -52,0 C -52,30  -18,34  0,7"
+          fill="none" stroke="url(#highlightGrad)" stroke-width="3" stroke-linecap="round" opacity="0.5"/>
+    <path d="M 52,0 C 52,-30  18,-34  0,-7"
+          fill="none" stroke="url(#highlightGrad)" stroke-width="3" stroke-linecap="round" opacity="0.4"/>
+    <path d="M 52,0 C 52,30  18,34  0,7"
+          fill="none" stroke="url(#highlightGrad)" stroke-width="3" stroke-linecap="round" opacity="0.4"/>
+
+    <!-- === AI NODE DOTS at the loop extremes === -->
+    <circle cx="-54" cy="0" r="4" fill="#00b4ff" filter="url(#dotGlow)" opacity="0.6"/>
+    <circle cx="-54" cy="0" r="2.5" fill="#66d4ff"/>
+
+    <circle cx="54" cy="0" r="4" fill="#d946ef" filter="url(#dotGlow)" opacity="0.6"/>
+    <circle cx="54" cy="0" r="2.5" fill="#f472b6"/>
+
+    <circle cx="0" cy="0" r="3" fill="#8b5cf6" filter="url(#dotGlow)" opacity="0.5"/>
+    <circle cx="0" cy="0" r="1.8" fill="#c4b5fd"/>
+  </g>
+
+  <!-- === ORBITAL RINGS (subtle, continuous cycle feel) === -->
+  <ellipse cx="128" cy="128" rx="72" ry="42" fill="none" stroke="url(#loopGrad)" stroke-width="0.8"
+           stroke-dasharray="4,8" opacity="0.25" transform="rotate(-8,128,128)"/>
+  <ellipse cx="128" cy="128" rx="80" ry="46" fill="none" stroke="url(#loopGrad2)" stroke-width="0.5"
+           stroke-dasharray="2,12" opacity="0.15" transform="rotate(5,128,128)"/>
+
+  <!-- === SMALL ACCENT PARTICLES === -->
+  <circle cx="68" cy="90" r="1.2" fill="#00b4ff" opacity="0.5"/>
+  <circle cx="192" cy="165" r="1" fill="#d946ef" opacity="0.4"/>
+  <circle cx="82" cy="170" r="0.8" fill="#8b5cf6" opacity="0.35"/>
+  <circle cx="180" cy="88" r="1" fill="#00b4ff" opacity="0.3"/>
+  <circle cx="155" cy="78" r="0.7" fill="#d946ef" opacity="0.25"/>
+  <circle cx="100" cy="178" r="0.9" fill="#8b5cf6" opacity="0.3"/>
+</svg>
