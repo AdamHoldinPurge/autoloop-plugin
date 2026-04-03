@@ -210,7 +210,9 @@ def check_plugins(config_dir=None):
     for plugin in REQUIRED_PLUGINS:
         pid = plugin['id']
         if plugin['type'] == 'local':
-            plugin_dir = os.path.join(cdir, 'plugins', 'autoloop')
+            # Autoloop lives at the canonical path (~/.claude/plugins/
+            # autoloop) shared by all accounts via symlinked settings.json
+            plugin_dir = os.path.join(DEFAULT_CONFIG, 'plugins', 'autoloop')
             plugin_json = os.path.join(
                 plugin_dir, '.claude-plugin', 'plugin.json')
             results[pid] = (os.path.isdir(plugin_dir)
@@ -1279,9 +1281,14 @@ sleep 3'''
         clipboard.store()
 
     def _on_install_autoloop(self, btn):
-        """Download and install the AutoLoop plugin for the selected account."""
+        """Download and install the AutoLoop plugin.
+        Since settings.json is symlinked across all accounts, we always
+        install to ~/.claude/plugins/autoloop (the canonical path) so
+        all accounts can find it through the shared settings."""
         config_dir = self.get_selected_config_dir()
-        target = os.path.join(config_dir, 'plugins', 'autoloop')
+        # Always install to the canonical location — settings.json is
+        # shared via symlink so all accounts need the same path
+        target = os.path.join(DEFAULT_CONFIG, 'plugins', 'autoloop')
         btn.set_sensitive(False)
         btn.set_label('Installing...')
 
