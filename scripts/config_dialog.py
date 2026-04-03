@@ -1336,6 +1336,28 @@ sleep 3'''
                             fp = os.path.join(scripts_dir, fname)
                             os.chmod(fp, 0o755)
 
+                # Register plugin in settings.json so Claude Code
+                # discovers it via extraKnownMarketplaces
+                settings_path = os.path.join(config_dir, 'settings.json')
+                # Resolve symlink to edit the real file
+                real_settings = os.path.realpath(settings_path)
+                settings = {}
+                try:
+                    with open(real_settings) as f:
+                        settings = json.load(f)
+                except (FileNotFoundError, json.JSONDecodeError):
+                    pass
+                ekm = settings.setdefault(
+                    'extraKnownMarketplaces', {})
+                ekm['autoloop-local'] = {
+                    'source': {
+                        'source': 'directory',
+                        'path': target
+                    }
+                }
+                with open(real_settings, 'w') as f:
+                    json.dump(settings, f, indent=2)
+
                 GLib.idle_add(self._install_done, True, '')
             except Exception as e:
                 GLib.idle_add(self._install_done, False, str(e))
