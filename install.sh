@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # AutoLoop Plugin Installer for Claude Code (Linux/macOS)
-# Usage: curl -sL https://raw.githubusercontent.com/AdamHoldinPurge/autoloop-plugin/main/install.sh | bash
+# Usage: curl -sL https://raw.githubusercontent.com/AdamHoldinPurge/autoloop-plugin/master/install.sh | bash
 set -e
 
 PLUGIN_DIR="$HOME/.claude/plugins/autoloop"
@@ -42,7 +42,7 @@ unzip -qo "$TMP_DIR/autoloop.zip" -d "$TMP_DIR"
 mkdir -p "$PLUGIN_DIR"
 
 # Copy files (preserve existing accounts.json if present)
-EXTRACTED="$TMP_DIR/autoloop-plugin-main"
+EXTRACTED="$TMP_DIR/autoloop-plugin-master"
 if [ -f "$PLUGIN_DIR/accounts/accounts.json" ]; then
     cp "$PLUGIN_DIR/accounts/accounts.json" "$TMP_DIR/accounts_backup.json"
 fi

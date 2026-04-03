@@ -1,5 +1,5 @@
 # AutoLoop Plugin Installer for Claude Code (Windows)
-# Usage: irm https://raw.githubusercontent.com/AdamHoldinPurge/autoloop-plugin/main/install.ps1 | iex
+# Usage: irm https://raw.githubusercontent.com/AdamHoldinPurge/autoloop-plugin/master/install.ps1 | iex
 $ErrorActionPreference = "Stop"
 
 $PluginDir = "$env:USERPROFILE\.claude\plugins\autoloop"
@@ -29,7 +29,7 @@ Invoke-WebRequest -Uri $RepoZip -OutFile $zipPath -UseBasicParsing
 Write-Host "Installing to $PluginDir..."
 Expand-Archive -Path $zipPath -DestinationPath $TmpDir -Force
 
-$Extracted = Join-Path $TmpDir "autoloop-plugin-main"
+$Extracted = Join-Path $TmpDir "autoloop-plugin-master"
 
 # Backup accounts.json if it exists
 $accountsBackup = $null

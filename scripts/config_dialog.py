@@ -12,6 +12,11 @@ import sys
 import json
 import subprocess
 import tempfile
+import shutil
+import threading
+from urllib.request import urlopen
+from zipfile import ZipFile
+from io import BytesIO
 
 ICON_PATH = os.path.expanduser('~/.claude/plugins/autoloop/icon.png')
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -91,7 +96,7 @@ REQUIRED_PLUGINS = [
         'id': 'autoloop',
         'display': 'AutoLoop',
         'type': 'local',
-        'install_cmd': 'curl -sL https://raw.githubusercontent.com/AdamHoldinPurge/autoloop-plugin/main/install.sh | bash',
+        'install_cmd': 'curl -sL https://raw.githubusercontent.com/AdamHoldinPurge/autoloop-plugin/master/install.sh | bash',
     },
 ]
 
@@ -1247,11 +1252,16 @@ sleep 3'''
             row_box.pack_start(name, True, True, 0)
 
             if not ok:
-                btn = Gtk.Button(label='Copy')
+                if plugin['type'] == 'local':
+                    btn = Gtk.Button(label='Install')
+                    btn.set_tooltip_text('Download and install AutoLoop')
+                    btn.connect('clicked', self._on_install_autoloop)
+                else:
+                    btn = Gtk.Button(label='Copy')
+                    btn.set_tooltip_text(plugin['install_cmd'])
+                    btn.connect('clicked', self._on_copy_install,
+                                plugin['install_cmd'])
                 btn.set_relief(Gtk.ReliefStyle.NONE)
-                btn.set_tooltip_text(plugin['install_cmd'])
-                btn.connect('clicked', self._on_copy_install,
-                            plugin['install_cmd'])
                 row_box.pack_start(btn, False, False, 0)
 
             self.plugin_list_box.pack_start(row_box, False, False, 0)
@@ -1267,6 +1277,91 @@ sleep 3'''
         clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
         clipboard.set_text(install_cmd, -1)
         clipboard.store()
+
+    def _on_install_autoloop(self, btn):
+        """Download and install the AutoLoop plugin for the selected account."""
+        config_dir = self.get_selected_config_dir()
+        target = os.path.join(config_dir, 'plugins', 'autoloop')
+        btn.set_sensitive(False)
+        btn.set_label('Installing...')
+
+        def do_install():
+            try:
+                url = ('https://github.com/AdamHoldinPurge/'
+                       'autoloop-plugin/archive/refs/heads/master.zip')
+                resp = urlopen(url, timeout=30)
+                zdata = BytesIO(resp.read())
+
+                with ZipFile(zdata) as zf:
+                    prefix = 'autoloop-plugin-master/'
+                    os.makedirs(target, exist_ok=True)
+                    for member in zf.namelist():
+                        if not member.startswith(prefix):
+                            continue
+                        rel = member[len(prefix):]
+                        if not rel:
+                            continue
+                        dest = os.path.join(target, rel)
+                        if member.endswith('/'):
+                            os.makedirs(dest, exist_ok=True)
+                        else:
+                            os.makedirs(os.path.dirname(dest),
+                                        exist_ok=True)
+                            with zf.open(member) as src, \
+                                    open(dest, 'wb') as dst:
+                                shutil.copyfileobj(src, dst)
+
+                # Fix marketplace.json to point to this install path
+                mkt_file = os.path.join(
+                    target, '.claude-plugin', 'marketplace.json')
+                os.makedirs(os.path.dirname(mkt_file), exist_ok=True)
+                mkt = {
+                    'name': 'autoloop-local',
+                    'description': 'Local marketplace for autoloop',
+                    'plugins': [{
+                        'name': 'autoloop',
+                        'description': 'Self-planning autonomous loop.',
+                        'version': '1.0.0',
+                        'source': {'type': 'directory', 'path': target}
+                    }]
+                }
+                with open(mkt_file, 'w') as f:
+                    json.dump(mkt, f, indent=2)
+
+                # Make scripts executable
+                scripts_dir = os.path.join(target, 'scripts')
+                if os.path.isdir(scripts_dir):
+                    for fname in os.listdir(scripts_dir):
+                        if fname.endswith('.sh'):
+                            fp = os.path.join(scripts_dir, fname)
+                            os.chmod(fp, 0o755)
+
+                GLib.idle_add(self._install_done, True, '')
+            except Exception as e:
+                GLib.idle_add(self._install_done, False, str(e))
+
+        threading.Thread(target=do_install, daemon=True).start()
+
+    def _install_done(self, success, error_msg):
+        """Called on main thread when autoloop install finishes."""
+        if success:
+            msg = Gtk.MessageDialog(
+                transient_for=self, modal=True,
+                message_type=Gtk.MessageType.INFO,
+                buttons=Gtk.ButtonsType.OK,
+                text='AutoLoop installed!')
+            msg.format_secondary_text(
+                'The AutoLoop plugin has been downloaded and installed.')
+        else:
+            msg = Gtk.MessageDialog(
+                transient_for=self, modal=True,
+                message_type=Gtk.MessageType.ERROR,
+                buttons=Gtk.ButtonsType.OK,
+                text='Install failed')
+            msg.format_secondary_text(f'Error: {error_msg}')
+        msg.run()
+        msg.destroy()
+        self._refresh_plugin_status()
 
     def _update_plugin_summary(self, installed, total):
         if installed == total:
