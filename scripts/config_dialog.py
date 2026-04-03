@@ -205,16 +205,11 @@ def check_plugins(config_dir=None):
     for plugin in REQUIRED_PLUGINS:
         pid = plugin['id']
         if plugin['type'] == 'local':
-            # Check both the selected config dir AND default for local plugins
-            found = False
-            for search_dir in (cdir, DEFAULT_CONFIG):
-                plugin_dir = os.path.join(search_dir, 'plugins', 'autoloop')
-                plugin_json = os.path.join(
-                    plugin_dir, '.claude-plugin', 'plugin.json')
-                if os.path.isdir(plugin_dir) and os.path.isfile(plugin_json):
-                    found = True
-                    break
-            results[pid] = found
+            plugin_dir = os.path.join(cdir, 'plugins', 'autoloop')
+            plugin_json = os.path.join(
+                plugin_dir, '.claude-plugin', 'plugin.json')
+            results[pid] = (os.path.isdir(plugin_dir)
+                            and os.path.isfile(plugin_json))
         else:
             is_installed = (pid in installed_plugins
                             and len(installed_plugins[pid]) > 0)
